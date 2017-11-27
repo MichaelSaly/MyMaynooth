@@ -1,0 +1,29 @@
+<% include partials/header %>
+    <a href="/"><img src='images/logo.png'></a><br>
+    <h2>Add Retail Deal</h2>
+    <form method="POST" action="/add/deal">
+        <select name="_Dstore">
+            <option>Select store</option>
+            <option>Aldi</option>
+            <option>Lidl</option>
+            <option>SuperValu</option>
+            <option>Tesco</option>
+        </select><br>
+        <input name="_Dname" type="text" placeholder="Name of product.."><br>
+        <input name="_Dprice" type="text" placeholder="Price.."><br>
+        <input name="_Dcategory" type="text" placeholder="Category.."><br>
+        <input type="submit" value="Add deal">
+    </form>
+
+    <h2>Add Entertainment Event</h2>
+    <form method="POST" action="/add/entertainment">
+        <input name="_Ename" type="text" placeholder="Name of event.."><br>
+        <input name="_Elocation" type="text" placeholder="Location in Maynooth.."><br>
+        <input name="_Edescription" type="text" placeholder="Description.."><br>
+        <input name="_Eprovider" type="text" placeholder="Provider.."><br>
+        <input name="_Egenre" type="text" placeholder="Genre.."><br>
+        <input type="submit" value="Add event">
+    </form>
+
+
+<% include partials/footer %>

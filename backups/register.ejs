@@ -1,0 +1,15 @@
+<% include partials/header %>
+    <a href="/"><img src='images/logo.png'></a><br>
+    <form method="POST">
+        <input name="_name" type="text" placeholder="Name" value="Michael" required><br>
+        <input name="_email" type="email" placeholder="Email" value="michaelsaly@msn.com" required><br>
+        <input name="_password" type="password" placeholder="Password" value="123456" required><br>
+        <input name="_password2" type="password" placeholder="Verify Password" value="123456" required><br>
+        <select name="_degree">
+            <option>Degree</option>
+            <option>CSSE</option>
+        </select><br>
+        <input name="_age" type="text" placeholder="Age" value="20" required><br>
+        <input type="submit" value="Register">
+    </form>
+<% include partials/footer %>
