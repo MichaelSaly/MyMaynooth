@@ -5,6 +5,7 @@ var app = express();
 
 //set up templete engine
 app.set('view engine', 'ejs');
+app.enable('trust proxy');
 
 //static files
 app.use(express.static('./public'));

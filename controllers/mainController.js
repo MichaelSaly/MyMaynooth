@@ -4,6 +4,13 @@ var firebase = require("firebase");
 require("firebase/database");
 require("firebase/auth");
 
+var admin = require('firebase-admin');
+var serviceAccount = require('../mymaynooth-53d4d-firebase-adminsdk-asw9a-f944c34d26.json');
+var firebaseAdmin = admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: 'https://mymaynooth-53d4d.firebaseio.com'
+});
+
 var config = {
     apiKey: "AIzaSyCmwykvFY_2SYwgRFhYbeZCiy79ab4-p4Y",
     authDomain: "mymaynooth-53d4d.firebaseapp.com",
@@ -24,39 +31,101 @@ module.exports = function(app) {
     var dealsRef = firebase.database().ref('Deals');
     var eventsRef = firebase.database().ref('Events');
 
+    var userInfo = {};
+    var li = function (req, res, next) {
+        if(!loggedIn) {
+            next();
+        } else {
+            firebase.auth().signInWithEmailAndPassword(currentPeopleLoggedIn[key].email, currentPeopleLoggedIn[key].password).then( function(data) {
+                userRef.child(firebase.auth().currentUser.uid).on('value', function(snapshot) {
+                    userInfo.name = snapshot.val().name;
 
+                    next();
+                }); 
+            });
+        }
+    }
+
+    function lo() {
+        firebase.auth().signOut();
+    }
+
+    var loggedIn = false;
+    var key;
+    function checkifloggedin(ip) {
+        for(var i = 0; i < currentPeopleLoggedIn.length+1; i++) {
+            if(i == currentPeopleLoggedIn.length) {
+                return false;
+            }
+
+            if(currentPeopleLoggedIn[i].ip == ip) {
+                key = i;
+                admin.auth().verifyIdToken(currentPeopleLoggedIn[i].token).then(function() {
+                    //TODO
+                    console.log('todo verify token');
+                }).catch(function(error) {
+                    console.log(error);
+                });
+                return true;
+            }
+        }   
+    }
+
+    var currentPeopleLoggedIn = [{}];
+    app.post('/checkifloggedin', urlencodedParser, function(req, res){
+        console.log('POST checkifloggedin');
+
+        admin.auth().verifyIdToken(req.body.token).then(function(decodedToken) {
+            currentPeopleLoggedIn.push({
+                'uid': decodedToken.uid,
+                'ip': req.ip,
+                'token': req.body.token,
+                'email': req.body.email,
+                'password': req.body.password
+            });
+        }).catch(function(error) {
+            console.log(error);
+        });
+        
+        res.redirect('home');
+    });
+    
     app.get('/', function(req, res){
         console.log('GET index');
+        loggedIn = checkifloggedin(req.ip);
 
-        if(firebase.auth().currentUser) {
-            
-            res.redirect('/home');
+        if(loggedIn) {
+
+            res.redirect('home');
         } else {
-
+            
             res.render('index', {
                 title: "Home",
-                loggedInState: firebase.auth().currentUser
+                loggedIn: loggedIn
             });
         }
     });
 
     app.get('/register', function(req, res){
         console.log('GET register');
+        loggedIn = checkifloggedin(req.ip);
 
-        if(firebase.auth().currentUser) {
+        if(loggedIn) {
             
             res.redirect('/home');
         } else {
 
             res.render('register', {
                 title: "Register",
-                loggedInState: firebase.auth().currentUser
+                loggedIn: loggedIn,
+                error: '0'
             });
         }
     });
 
     app.post('/register', urlencodedParser, function(req, res){
         console.log('POST register');
+        var registerSuccess = true;
 
         var _name = req.body._name;
         var _email = req.body._email;
@@ -65,13 +134,26 @@ module.exports = function(app) {
         var _degree = req.body._degree;
         var _age = req.body._age;
 
-        if(_password != _password2) //TODO (validation)
-            passwordNotMatch(); //TODO
+        if(_password != _password2) {//TODO (validation)
+            res.render('register', {
+                title: "Register",
+                loggedIn: loggedIn,
+                error: "Password do not match."
+            })
+        }
         else {
             firebase.auth().createUserWithEmailAndPassword(_email, _password).catch(function(error) {
+                registerSuccess = false;
                 console.log(error.message); //TODO (user alreasdy exists?)
                 var errorMessage = error.message;
+
+                res.render('register', {
+                    title: "Register",
+                    loggedIn: loggedIn,
+                    error: error.message
+                })
             }).then(function(){
+                if(registerSuccess) {
                 firebase.auth().signInWithEmailAndPassword(_email, _password).catch(function(error) {
                     var errorCode = error.code;
                     var errorMessage = error.message;
@@ -79,18 +161,25 @@ module.exports = function(app) {
                     console.log(errorMessage);
                 }).then(function(){
                     userRef.child(firebase.auth().currentUser.uid).set({
-                        name: _name,
                         email: _email,
                         password: _password,
                         degree: _degree,
                         age: _age,
                         registered: Date(),
                         lastLogIn: Date(),
-                        accountType: 'user'
+                        accountType: 'user',
+                        name: _name
                     });
 
-                    res.redirect('home');
+                    res.render('login', {
+                        title: "Login",
+                        loggedIn: loggedIn,
+                        registerSuccessMessage: "1"
+                    }
+                );
                 });
+                }
+                lo();
             });
         }
     });
@@ -101,46 +190,36 @@ module.exports = function(app) {
 
     app.get('/login', function(req, res){
         console.log('GET login');
+        loggedIn = checkifloggedin(req.ip);
 
-        if(firebase.auth().currentUser) {
-                
-            res.redirect('/home');
+        if(loggedIn) {
+
+            res.redirect('home');
         } else {
 
             res.render('login', {
                 title: "Login",
-                login: true,
-                loggedInState: firebase.auth().currentUser
+                loggedIn: loggedIn,
+                registerSuccessMessage: ""
             });
         }
     });
 
     app.post('/login', urlencodedParser, function(req, res){
-        console.log('POST login');    
-
-        var _email = req.body._email;
-        var _password = req.body._password;
-
-        firebase.auth().signInWithEmailAndPassword(_email, _password).catch(function(error) {
-            // Handle Errors here.
-            var errorCode = error.code;
-            var errorMessage = error.message;
-            console.log("login failed. reason: ");
-            console.log(errorMessage);
-        }).then(function(){
-            userRef.child(firebase.auth().currentUser.uid).update({lastLogIn: Date()});
-
-            res.redirect('home');
-        });
+        console.log('POST login');
+        res.redirect('login');
     });
 
-    app.get('/home', function(req, res){
+    app.get('/home', li, function(req, res){
         console.log('GET home');
+        loggedIn = checkifloggedin(req.ip);
 
-        if(firebase.auth().currentUser) {            
+        if(loggedIn) {
+
             res.render('home', {
                 title: "Home",
-                loggedInState: firebase.auth().currentUser
+                loggedIn: loggedIn,
+                name: userInfo.name
             });
         } else {
 
@@ -151,11 +230,17 @@ module.exports = function(app) {
     app.get('/logout', function(req, res){
         console.log('GET logout');
 
-        firebase.auth().signOut();
+        for(var i = 1; i < currentPeopleLoggedIn.length; i++) {
+            if(currentPeopleLoggedIn[i].ip == req.ip) {
+                currentPeopleLoggedIn.splice(i, 1);
+            }
+        }
+
+        loggedIn = false;
 
         res.render('index', {
-            title: "Logged Out",
-            loggedInState: firebase.auth().currentUser
+            title: 'Logged Out',
+            loggedIn: 0
         });
     });
 
@@ -164,7 +249,7 @@ module.exports = function(app) {
 
         res.render('admin', {
             title: "Administrative section",
-            loggedInState: firebase.auth().currentUser
+            loggedIn: loggedIn
         });
     });
 
@@ -211,10 +296,10 @@ module.exports = function(app) {
         res.redirect('../admin');
     });
     
-    app.get('/events', function(req, res){
+    app.get('/events', li, function(req, res){
         console.log('GET events');
-
-        if(firebase.auth().currentUser) {
+        loggedIn = checkifloggedin(req.ip);
+        if(loggedIn) {
             var eSnapData = [];
             eventsRef.once("value").then(function(snap) {
                 snap.forEach(function(childSnap){
@@ -229,20 +314,22 @@ module.exports = function(app) {
     
                 res.render('events', {
                     title: "Events",
-                    data: eSnapData,
-                    loggedInState: firebase.auth().currentUser
+                    loggedIn: loggedIn,
+                    data: eSnapData
                 });
-            });    
+            }); 
+        lo();   
         } else {
 
             res.redirect('login');
         }
     });
 
-    app.get('/event/:e', function(req, res) {
+    app.get('/event/:e', li, function(req, res) {
         console.log("GET event " + req.params.e);
-
-        if(firebase.auth().currentUser) {
+        loggedIn = checkifloggedin(req.ip);
+        if(loggedIn) {
+            console.log('here');
             var eSnapData = {};
             eventsRef.orderByChild("name").equalTo(req.params.e).on("child_added", function(snap) {
                 eSnapData = ({
@@ -259,9 +346,10 @@ module.exports = function(app) {
                 res.render('event-item', {
                     title: req.params.e,
                     data: eSnapData,
-                    loggedInState: firebase.auth().currentUser
+                    loggedIn: loggedIn
                 });
             });
+        lo();
         } else {
 
             res.redirect('../login');
@@ -323,12 +411,12 @@ module.exports = function(app) {
         }
     });
 
-    app.get('/eg', function(req, res){
-        res.render('eg', {
-            title: "Home",
-            loggedInState: firebase.auth().currentUser
-        });
-    });
+    // app.get('/bootstrap.min.css.map', function(req, res){
+    //     res.send('ok');
+    // });
+    // app.get('/bootstrap.min.js.map', function(req, res){
+    //     res.send('ok');
+    // });
 };
 
 

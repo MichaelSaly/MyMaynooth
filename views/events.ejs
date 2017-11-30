@@ -1,5 +1,4 @@
 <% include partials/header %>
-    <a href="/"><img src='images/logo.png'></a><br>
     <% for(var i = 0; i < data.length; i++){ %>
         <a href="/event/<%=data[i].name%> "><%= data[i].name; %></a><br>
     <% } %>

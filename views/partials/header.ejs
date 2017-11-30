@@ -6,19 +6,66 @@
     <meta name="description" content="">
     <meta name="author" content="">
     <link rel="icon" href="../../../../favicon.ico">
+    
 
     <title><%= title %> - MyMaynooth</title>
 
     <!-- Bootstrap core CSS -->
-    <link href="bootstrap.min.css" rel="stylesheet">
+    <link href="/bootstrap.min.css" rel="stylesheet">
 
     <!-- Custom styles for this template -->
-    <link href="starter-template.css" rel="stylesheet">
+    <link href="/starter-template.css" rel="stylesheet">
 
     <!-- Custom style for sign in -->
     <% if(title == "Login" || title == "Register") { %>
-      <link href="signin.css" rel="stylesheet">
+      <link href="/signin.css" rel="stylesheet">
     <% } %>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/4.6.2/firebase.js"></script>
+
+    <script>
+    var config = {
+        apiKey: "AIzaSyCmwykvFY_2SYwgRFhYbeZCiy79ab4-p4Y",
+        authDomain: "mymaynooth-53d4d.firebaseapp.com",
+        databaseURL: "https://mymaynooth-53d4d.firebaseio.com",
+        projectId: "mymaynooth-53d4d",
+        storageBucket: "",
+        messagingSenderId: "674746588332"
+    };  
+    firebase.initializeApp(config);
+      
+    function signin(_email, _password) {
+      firebase.auth().signInWithEmailAndPassword(_email, _password).then( function(data) {
+
+        firebase.database().ref('Users').child(firebase.auth().currentUser.uid).update({
+          lastLogIn: Date()
+        });
+          firebase.auth().currentUser.getIdToken(true).then(function(idToken) {
+              var xhttp = new XMLHttpRequest();
+              xhttp.open("POST", "/checkifloggedin", true);
+              xhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+              xhttp.send("token=" + idToken + "&email=" + _email + "&password=" + _password);
+              setTimeout(function(){window.location.reload(true)}, 500);
+          });
+
+      }).catch( function(error) {
+          document.getElementById('loginError').innerHTML = error.message;
+
+
+        console.log("code: " + error.code);
+        var errorMessage = error.message;
+        console.log("login failed. reason: ");
+        console.log(errorMessage);
+      });
+      
+    }
+
+    function logout() {
+        firebase.auth().signOut();
+    }
+    
+    </script>
   </head>
 
   <body>
@@ -35,7 +82,13 @@
             <a class="nav-link" href="/">Home <span class="sr-only">(current)</span></a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="#">Link</a>
+            <a class="nav-link" href="/events">Events</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/deals">Deals</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/mygroup">My Group</a>
           </li>
           <li class="nav-item">
             <a class="nav-link disabled" href="#">Disabled</a>
@@ -49,11 +102,11 @@
             </div>
           </li>
         </ul>
-          <% if(!loggedInState) { %>
+        <% if(!loggedIn) { %>
           <a href="/login"><button class="btn btn-outline-success my-2 my-sm-0" type="submit">Log In</button></a>
           <a href="/register" style="margin-left: 1%"><button class="btn btn-outline-success my-2 my-sm-0" type="submit">Register</button></a>
-          <% } %>
+        <% } else { %>
+          <a onclick="logout()" href="/logout" style="margin-left: 1%"><button class="btn btn-outline-success my-2 my-sm-0" type="submit">Log out</button></a>
+        <% } %>
       </div>
     </nav>
-
-    

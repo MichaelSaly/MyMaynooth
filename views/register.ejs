@@ -26,6 +26,9 @@
         <label for="inputAge" class="sr-only">Age</label>
         <input name="_age" type="text" id="inputAge" class="form-control" placeholder="Age" required autofocus>
 
+        <% if(error != 0) { %>
+            <%=error%>
+        <% } %>
         <button class="btn btn-lg btn-primary btn-block" type="submit">Register</button>
         </form>
     </div>
