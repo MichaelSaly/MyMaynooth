@@ -37,17 +37,16 @@
       
     function signin(_email, _password) {
       firebase.auth().signInWithEmailAndPassword(_email, _password).then( function(data) {
-
+        var sessionID = Math.floor(Math.random() * 99999);
+        document.cookie = "sessionID=" + sessionID;
         firebase.database().ref('Users').child(firebase.auth().currentUser.uid).update({
           lastLogIn: Date()
         });
-          firebase.auth().currentUser.getIdToken(true).then(function(idToken) {
-              var xhttp = new XMLHttpRequest();
-              xhttp.open("POST", "/checkifloggedin", true);
-              xhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-              xhttp.send("token=" + idToken + "&email=" + _email + "&password=" + _password);
-              setTimeout(function(){window.location.reload(true)}, 500);
-          });
+        var xhttp = new XMLHttpRequest();
+        xhttp.open("POST", "/loginx", true);
+        xhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+        xhttp.send("sessionID=" + sessionID + "&email=" + _email + "&password=" + _password);
+        setTimeout(function(){window.location.reload(true)}, 500);
 
       }).catch( function(error) {
           document.getElementById('loginError').innerHTML = error.message;
@@ -63,6 +62,7 @@
 
     function logout() {
         firebase.auth().signOut();
+        document.cookie = "sessionID=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     }
     
     </script>

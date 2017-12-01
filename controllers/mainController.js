@@ -31,96 +31,115 @@ module.exports = function(app) {
     var dealsRef = firebase.database().ref('Deals');
     var eventsRef = firebase.database().ref('Events');
 
-    var userInfo = {};
-    var li = function (req, res, next) {
-        if(!loggedIn) {
-            next();
-        } else {
-            firebase.auth().signInWithEmailAndPassword(currentPeopleLoggedIn[key].email, currentPeopleLoggedIn[key].password).then( function(data) {
-                userRef.child(firebase.auth().currentUser.uid).on('value', function(snapshot) {
-                    userInfo.name = snapshot.val().name;
+    // var userInfo = {};
+    // var li = function (req, res, next) {
+    //     if(!loggedIn) {
+    //         next();
+    //     } else {
+    //         firebase.auth().signInWithEmailAndPassword(currentPeopleLoggedIn[key].email, currentPeopleLoggedIn[key].password).then( function(data) {
+    //             userRef.child(firebase.auth().currentUser.uid).on('value', function(snapshot) {
+    //                 userInfo.name = snapshot.val().name;
 
-                    next();
-                }); 
-            });
-        }
-    }
+    //                 next();
+    //             }); 
+    //         });
+    //     }
+    // }
 
     function lo() {
         firebase.auth().signOut();
     }
 
-    var loggedIn = false;
-    var key;
-    function checkifloggedin(ip) {
+    // var loggedIn = false;
+    // var key;
+    // function checkifloggedin(ip) {
+    //     for(var i = 0; i < currentPeopleLoggedIn.length+1; i++) {
+    //         if(i == currentPeopleLoggedIn.length) {
+    //             return false;
+    //         }
+
+    //         if(currentPeopleLoggedIn[i].ip == ip) {
+    //             key = i;
+    //             admin.auth().verifyIdToken(currentPeopleLoggedIn[i].token).then(function() {
+    //                 //TODO
+    //                 console.log('todo verify token');
+    //             }).catch(function(error) {
+    //                 console.log(error);
+    //             });
+    //             return true;
+    //         }
+    //     }   
+    // }
+
+    // var loggedIn = 0;
+    // function setLoggedIn(b) {
+    //     loggedIn = b;
+    //     console.log("set" + loggedIn + " " + b);
+    // }
+    
+    var currentPeopleLoggedIn = [{}];
+    var userInfo = {};
+    var li = function(req, res, next) {
         for(var i = 0; i < currentPeopleLoggedIn.length+1; i++) {
             if(i == currentPeopleLoggedIn.length) {
-                return false;
+                next();
+                break;
             }
-
-            if(currentPeopleLoggedIn[i].ip == ip) {
-                key = i;
-                admin.auth().verifyIdToken(currentPeopleLoggedIn[i].token).then(function() {
-                    //TODO
-                    console.log('todo verify token');
-                }).catch(function(error) {
-                    console.log(error);
+            if(currentPeopleLoggedIn[i].sessionID == req.cookies.sessionID && currentPeopleLoggedIn[i].sessionID > 0) {
+                firebase.auth().signInWithEmailAndPassword(currentPeopleLoggedIn[i].email, currentPeopleLoggedIn[i].password).then( function(data) {
+                    userRef.child(firebase.auth().currentUser.uid).on('value', function(snapshot) {
+                        userInfo.name = snapshot.val().name;
+    
+                        next();
+                    }); 
                 });
-                return true;
+                break;
             }
-        }   
-    }
+        }
+    };
 
-    var currentPeopleLoggedIn = [{}];
-    app.post('/checkifloggedin', urlencodedParser, function(req, res){
-        console.log('POST checkifloggedin');
+    app.post('/loginx', urlencodedParser, function(req, res){
+        console.log('POST loginx');
 
-        admin.auth().verifyIdToken(req.body.token).then(function(decodedToken) {
-            currentPeopleLoggedIn.push({
-                'uid': decodedToken.uid,
-                'ip': req.ip,
-                'token': req.body.token,
-                'email': req.body.email,
-                'password': req.body.password
-            });
-        }).catch(function(error) {
-            console.log(error);
+        currentPeopleLoggedIn.push({
+            'sessionID': req.body.sessionID,
+            'email': req.body.email,
+            'password': req.body.password
         });
         
         res.redirect('home');
     });
     
-    app.get('/', function(req, res){
+    app.get('/', li, function(req, res){
         console.log('GET index');
-        loggedIn = checkifloggedin(req.ip);
-
-        if(loggedIn) {
+        if(firebase.auth().currentUser) {
 
             res.redirect('home');
         } else {
             
             res.render('index', {
                 title: "Home",
-                loggedIn: loggedIn
+                loggedIn: 0
             });
         }
+        lo();
     });
 
     app.get('/register', function(req, res){
         console.log('GET register');
-        loggedIn = checkifloggedin(req.ip);
 
-        if(loggedIn) {
+        if(firebase.auth().currentUser) {
             
             res.redirect('/home');
         } else {
 
             res.render('register', {
                 title: "Register",
-                loggedIn: loggedIn,
+                loggedIn: 0,
                 error: '0'
             });
         }
+        lo();
     });
 
     app.post('/register', urlencodedParser, function(req, res){
@@ -154,30 +173,29 @@ module.exports = function(app) {
                 })
             }).then(function(){
                 if(registerSuccess) {
-                firebase.auth().signInWithEmailAndPassword(_email, _password).catch(function(error) {
-                    var errorCode = error.code;
-                    var errorMessage = error.message;
-                    console.log("login failed. reason: ");
-                    console.log(errorMessage);
-                }).then(function(){
-                    userRef.child(firebase.auth().currentUser.uid).set({
-                        email: _email,
-                        password: _password,
-                        degree: _degree,
-                        age: _age,
-                        registered: Date(),
-                        lastLogIn: Date(),
-                        accountType: 'user',
-                        name: _name
-                    });
+                    firebase.auth().signInWithEmailAndPassword(_email, _password).catch(function(error) {
+                        var errorCode = error.code;
+                        var errorMessage = error.message;
+                        console.log("login failed. reason: ");
+                        console.log(errorMessage);
+                    }).then(function(){
+                        userRef.child(firebase.auth().currentUser.uid).set({
+                            email: _email,
+                            password: _password,
+                            degree: _degree,
+                            age: _age,
+                            registered: Date(),
+                            lastLogIn: Date(),
+                            accountType: 'user',
+                            name: _name
+                        });
 
-                    res.render('login', {
-                        title: "Login",
-                        loggedIn: loggedIn,
-                        registerSuccessMessage: "1"
-                    }
-                );
-                });
+                        res.render('login', {
+                            title: "Login",
+                            loggedIn: loggedIn,
+                            registerSuccessMessage: "1"
+                        });
+                    });
                 }
                 lo();
             });
@@ -188,21 +206,21 @@ module.exports = function(app) {
         console.log("passwords do not match");
     }
 
-    app.get('/login', function(req, res){
+    app.get('/login', li, function(req, res){
         console.log('GET login');
-        loggedIn = checkifloggedin(req.ip);
 
-        if(loggedIn) {
+        if(firebase.auth().currentUser) {
 
             res.redirect('home');
         } else {
 
             res.render('login', {
                 title: "Login",
-                loggedIn: loggedIn,
+                loggedIn: 0,
                 registerSuccessMessage: ""
             });
         }
+        lo();
     });
 
     app.post('/login', urlencodedParser, function(req, res){
@@ -211,32 +229,30 @@ module.exports = function(app) {
     });
 
     app.get('/home', li, function(req, res){
-        console.log('GET home');
-        loggedIn = checkifloggedin(req.ip);
+        console.log('GET home | currentuser: ' + firebase.auth().currentUser);
 
-        if(loggedIn) {
+        if(firebase.auth().currentUser) {
 
             res.render('home', {
                 title: "Home",
-                loggedIn: loggedIn,
+                loggedIn: 1,
                 name: userInfo.name
             });
         } else {
 
             res.redirect('login');
         }
+        lo();
     });
 
     app.get('/logout', function(req, res){
         console.log('GET logout');
 
         for(var i = 1; i < currentPeopleLoggedIn.length; i++) {
-            if(currentPeopleLoggedIn[i].ip == req.ip) {
+            if(currentPeopleLoggedIn[i].sessionID == req.cookies.sessionID) {
                 currentPeopleLoggedIn.splice(i, 1);
             }
         }
-
-        loggedIn = false;
 
         res.render('index', {
             title: 'Logged Out',
@@ -249,7 +265,7 @@ module.exports = function(app) {
 
         res.render('admin', {
             title: "Administrative section",
-            loggedIn: loggedIn
+            loggedIn: 1
         });
     });
 
@@ -298,8 +314,8 @@ module.exports = function(app) {
     
     app.get('/events', li, function(req, res){
         console.log('GET events');
-        loggedIn = checkifloggedin(req.ip);
-        if(loggedIn) {
+
+        if(firebase.auth().currentUser) {
             var eSnapData = [];
             eventsRef.once("value").then(function(snap) {
                 snap.forEach(function(childSnap){
@@ -314,7 +330,7 @@ module.exports = function(app) {
     
                 res.render('events', {
                     title: "Events",
-                    loggedIn: loggedIn,
+                    loggedIn: 1,
                     data: eSnapData
                 });
             }); 
@@ -323,12 +339,13 @@ module.exports = function(app) {
 
             res.redirect('login');
         }
+        lo();
     });
 
     app.get('/event/:e', li, function(req, res) {
         console.log("GET event " + req.params.e);
-        loggedIn = checkifloggedin(req.ip);
-        if(loggedIn) {
+
+        if(firebase.auth().currentUser) {
             console.log('here');
             var eSnapData = {};
             eventsRef.orderByChild("name").equalTo(req.params.e).on("child_added", function(snap) {
@@ -346,7 +363,7 @@ module.exports = function(app) {
                 res.render('event-item', {
                     title: req.params.e,
                     data: eSnapData,
-                    loggedIn: loggedIn
+                    loggedIn: 1
                 });
             });
         lo();
@@ -354,6 +371,7 @@ module.exports = function(app) {
 
             res.redirect('../login');
         }
+        lo();
     });
 
     app.get('/deals', function(req, res){
@@ -374,7 +392,7 @@ module.exports = function(app) {
                 res.render('deals', {
                     title: "Deals",
                     data: dSnapData,
-                    loggedInState: firebase.auth().currentUser
+                    loggedInState: 1
                 });
             });    
         } else {

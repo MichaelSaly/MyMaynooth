@@ -5,10 +5,17 @@ var app = express();
 
 //set up templete engine
 app.set('view engine', 'ejs');
-app.enable('trust proxy');
 
 //static files
 app.use(express.static('./public'));
+
+var cookieParser = require('cookie-parser');
+var session = require('express-session');
+
+app.use(cookieParser());
+app.use(session({secret: 'anystringoftext',
+				 saveUninitialized: true,
+				 resave: true}));
 
 //fire controllers
 todoController(app);
